@@ -237,10 +237,12 @@ function _writeCredentialsToFile(credentials) {
  */
 function readCredentials(r) {
     if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+        const sessionToken = process.env['S3_SESSION_TOKEN'] ?
+                             process.env['S3_SESSION_TOKEN'] : null;
         return {
             accessKeyId: process.env['S3_ACCESS_KEY_ID'],
             secretAccessKey: process.env['S3_SECRET_KEY'],
-            sessionToken: null,
+            sessionToken: sessionToken,
             expiration: null
         };
     }
