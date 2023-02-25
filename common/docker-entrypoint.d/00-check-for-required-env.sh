@@ -49,7 +49,7 @@ elif [[ -v AWS_WEB_IDENTITY_TOKEN_FILE ]]; then
 # If none of the options above is used, require static credentials.
 # See https://docs.aws.amazon.com/sdkref/latest/guide/feature-static-credentials.html.
 else
-  required+=("S3_ACCESS_KEY_ID" "S3_SECRET_KEY")
+  required+=("S3_ACCESS_KEY_ID" "S3_SECRET_KEY" "S3_SESSION_TOKEN")
 fi
 
 if [[ -v S3_SESSION_TOKEN ]]; then
