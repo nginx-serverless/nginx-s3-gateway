@@ -56,7 +56,7 @@ const NOW = new Date();
  * Constant defining the service requests are being signed for.
  * @type {string}
  */
-const SERVICE = 's3';
+const LAMBDA_SERVICE = 'lambda';
 
 /**
  * Constant checksum for an empty HTTP body.
@@ -90,10 +90,6 @@ const EC2_IMDS_SECURITY_CREDENTIALS_ENDPOINT = 'http://169.254.169.254/latest/me
  * @param r HTTP request
  */
 function editHeaders(r) {
-    const isDirectoryHeadRequest =
-        ALLOW_LISTING &&
-        r.method === 'HEAD' &&
-        _isDirectory(decodeURIComponent(r.variables.uri_path));
 
     /* Strips all x-amz- headers from the output HTTP headers so that the
      * requesters to the gateway will not know you are proxying S3. */
@@ -101,19 +97,9 @@ function editHeaders(r) {
         for (const key in r.headersOut) {
             /* We delete all headers when it is a directory head request because
              * none of the information is relevant for passing on via a gateway. */
-            if (isDirectoryHeadRequest) {
-                delete r.headersOut[key];
-            } else if (_isHeaderToBeStripped(key.toLowerCase(), ADDITIONAL_HEADER_PREFIXES_TO_STRIP)) {
+            if (_isHeaderToBeStripped(key.toLowerCase(), ADDITIONAL_HEADER_PREFIXES_TO_STRIP)) {
                 delete r.headersOut[key];
             }
-        }
-
-        /* Transform content type returned on HEAD requests for directories
-         * if directory listing is enabled. If you change the output format
-         * for the XSL stylesheet from HTML to something else, you will
-         * want to change the content type below. */
-        if (isDirectoryHeadRequest) {
-            r.headersOut['Content-Type'] = 'text/html; charset=utf-8'
         }
     }
 }
@@ -608,12 +594,12 @@ function signedHeaders(sessionToken) {
  * @returns {string} HTTP Authorization header value
  */
 function signatureV4(r, timestamp, bucket, region, server, credentials) {
-    const service = bucket ? SERVICE : 'lambda';
+    const svc = LAMBDA_SERVICE;
     const eightDigitDate = _eightDigitDate(timestamp);
     const amzDatetime = _amzDatetime(timestamp, eightDigitDate);
     const signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, credentials, bucket, region, server);
     const authHeader = 'AWS4-HMAC-SHA256 Credential='
-        .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
+        .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', svc, '/aws4_request,',
             'SignedHeaders=', signedHeaders(credentials.sessionToken), ',Signature=', signature);
 
     _debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
@@ -634,38 +620,25 @@ function signatureV4(r, timestamp, bucket, region, server, credentials) {
  * @private
  */
 function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region, server) {
-    let host = server;
-    if (bucket !== '' && (S3_STYLE === 'virtual' || S3_STYLE === 'default' || S3_STYLE === undefined)) {
-        host = bucket + '.' + host;
-    }
-    const service = bucket ? SERVICE : 'lambda';
-    const method = bucket ? r.method : 'POST';
-    const baseUri = s3BaseUri(r);
-    const queryParams = bucket ? _s3DirQueryParams(r.variables.uri_path, method) : '';
-    let uri;
-    if (queryParams.length > 0) {
-        if (baseUri.length > 0) {
-            uri = baseUri;
-        } else {
-            uri = '/';
-        }
-    } else {
-        uri = bucket ? s3uri(r) : r.variables.uri_path;
-    }
+    const host = server;
+    const svc = LAMBDA_SERVICE;
+    const method = 'POST';
+    const queryParams = '';
+    const uri = r.variables.uri_path;
 
     const canonicalRequest = _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, creds.sessionToken);
 
-    _debug_log(r, 'AWS v4 Auth Canonical Request: [' + canonicalRequest + ']');
+    _debug_log(r, '[Lambda] AWS v4 Auth Canonical Request: [' + canonicalRequest + ']');
 
     const canonicalRequestHash = mod_hmac.createHash('sha256')
         .update(canonicalRequest)
         .digest('hex');
 
-    _debug_log(r, 'AWS v4 Auth Canonical Request Hash: [' + canonicalRequestHash + ']');
+    _debug_log(r, '[Lambda] AWS v4 Auth Canonical Request Hash: [' + canonicalRequestHash + ']');
 
     const stringToSign = _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalRequestHash);
 
-    _debug_log(r, 'AWS v4 Auth Signing String: [' + stringToSign + ']');
+    _debug_log(r, '[Lambda] AWS v4 Auth Signing String: [' + stringToSign + ']');
 
     let kSigningHash;
 
@@ -693,13 +666,13 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
             kSigningHash = Buffer.from(JSON.parse(fields[1]));
         // Otherwise, generate a new signing key hash and store it in the cache
         } else {
-            kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, service, region);
+            kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, svc, region);
             _debug_log(r, 'Writing key: ' + eightDigitDate + ':' + kSigningHash.toString('hex'));
             r.variables.signing_key_hash = eightDigitDate + ':' + JSON.stringify(kSigningHash);
         }
     // Otherwise, don't use caching at all (like when we are using NGINX OSS)
     } else {
-        kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, service, region);
+        kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, svc, region);
     }
 
     _debug_log(r, 'AWS v4 Signing Key Hash: [' + kSigningHash.toString('hex') + ']');
@@ -751,7 +724,7 @@ function _splitCachedValues(cached) {
 function _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalRequestHash) {
     return 'AWS4-HMAC-SHA256\n' +
         amzDatetime + '\n' +
-        eightDigitDate + '/' + region + '/s3/aws4_request\n' +
+        eightDigitDate + '/' + region + '/lambda/aws4_request\n' +
         canonicalRequestHash;
 }
 

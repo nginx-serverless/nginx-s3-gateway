@@ -1,4 +1,5 @@
 js_import /etc/nginx/include/s3gateway.js;
+js_import /etc/nginx/include/lambda_gateway.js;
 
 # We include only the variables needed for the authentication signatures that
 # we plan to use.
@@ -17,11 +18,17 @@ map $S3_STYLE $s3_host_hdr {
     default "${S3_BUCKET_NAME}.${S3_SERVER}";
 }
 
+map $host $lambda_functions {
+    default https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/nginx-serverless/invocations;
+}
+
 js_var $indexIsEmpty true;
 # This creates the HTTP authentication header to be sent to S3
 js_set $s3auth s3gateway.s3auth;
+js_set $lambdaAuth lambda_gateway.lambdaAuth;
 js_set $s3SecurityToken s3gateway.s3SecurityToken;
 js_set $s3uri s3gateway.s3uri;
+js_set $lambdaUri lambda_gateway.lambdaUri;
 
 server {
     include /etc/nginx/conf.d/gateway/server_variables.conf;
@@ -35,21 +42,21 @@ server {
     # add_header X-Cache-Status $upstream_cache_status;
 
     # Proxy caching configuration. Customize this for your needs.
-    proxy_cache s3_cache;
-    proxy_cache_valid 200 302 ${PROXY_CACHE_VALID_OK};
-    proxy_cache_valid 404 ${PROXY_CACHE_VALID_NOTFOUND};
-    proxy_cache_valid 403 ${PROXY_CACHE_VALID_FORBIDDEN};
-    proxy_cache_methods GET HEAD;
+    #proxy_cache s3_cache;
+    #proxy_cache_valid 200 302 ${PROXY_CACHE_VALID_OK};
+    #proxy_cache_valid 404 ${PROXY_CACHE_VALID_NOTFOUND};
+    #proxy_cache_valid 403 ${PROXY_CACHE_VALID_FORBIDDEN};
+    #proxy_cache_methods GET HEAD;
     # When this is enabled a HEAD request to NGINX will result in a GET
     # request upstream. Unfortunately, proxy_cache_convert_head has to be
     # disabled because there is no way for the signatures generation code to
     # get access to the metadata in the GET request that is sent upstream.
-    proxy_cache_convert_head off;
-    proxy_cache_revalidate on;
-    proxy_cache_background_update on;
-    proxy_cache_lock on;
-    proxy_cache_use_stale error timeout http_500 http_502 http_503 http_504;
-    proxy_cache_key "$request_method$host$uri";
+    #proxy_cache_convert_head off;
+    #proxy_cache_revalidate on;
+    #proxy_cache_background_update on;
+    #proxy_cache_lock on;
+    #proxy_cache_use_stale error timeout http_500 http_502 http_503 http_504;
+    #proxy_cache_key "$request_method$host$uri";
 
     # If you need to support proxying range request, refer to this article:
     # https://www.nginx.com/blog/smart-efficient-byte-range-caching-nginx/
@@ -83,6 +90,36 @@ server {
         # @s3, @s3Listing or @error405.
 
         js_content s3gateway.redirectToS3;
+    }
+
+    location = /2015-03-31 {
+        # CORS is implemented by returning the appropriate headers as part of
+        # the response to an OPTIONS request. If you want to customize the
+        # CORS response, the cors.conf.template file can be overwritten and
+        # extended to meet one's needs.
+        include /etc/nginx/conf.d/gateway/cors.conf;
+
+        auth_request /aws/credentials/retrieve;
+
+        # Redirect to the proper location based on the client request - either
+        # @s3, @s3Listing or @error405.
+
+        js_content lambda_gateway.redirectToLambda;
+    }
+
+    location = /2015-03-31/functions/nginx-serverless/invocations {
+        # CORS is implemented by returning the appropriate headers as part of
+        # the response to an OPTIONS request. If you want to customize the
+        # CORS response, the cors.conf.template file can be overwritten and
+        # extended to meet one's needs.
+        include /etc/nginx/conf.d/gateway/cors.conf;
+
+        auth_request /aws/credentials/retrieve;
+
+        # Redirect to the proper location based on the client request - either
+        # @s3, @s3Listing or @error405.
+
+        js_content lambda_gateway.redirectToLambda;
     }
 
     location /aws/credentials/retrieve {
@@ -133,8 +170,58 @@ server {
         error_page 400 401 402 403 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
 
         error_page 404 @trailslashControl;
-
         proxy_pass ${S3_SERVER_PROTO}://storage_urls$s3uri;
+
+        include /etc/nginx/conf.d/gateway/s3_location.conf;
+    }
+
+    location @lambda {
+        # We include only the headers needed for the authentication signatures that
+        # we plan to use.
+        include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
+
+        # The CORS configuration needs to be imported in several places in order for
+        # it to be applied within different contexts.
+        include /etc/nginx/conf.d/gateway/cors.conf;
+
+        # Don't allow any headers from the client - we don't want them messing
+        # with S3 at all.
+        proxy_pass_request_headers off;
+
+        # Enable passing of the server name through TLS Server Name Indication extension.
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${LAMBDA_SERVER};
+
+        # Set the Authorization header to the AWS Signatures credentials
+        proxy_set_header Authorization $lambdaAuth;
+        proxy_set_header X-Amz-Security-Token $s3SecurityToken;
+
+        # We set the host as the bucket name to inform the S3 API of the bucket
+        #proxy_set_header Host $s3_host_hdr;
+
+        # Use keep alive connections in order to improve performance
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+
+        # We strip off all of the AWS specific headers from the server so that
+        # there is nothing identifying the object as having originated in an
+        # object store.
+        js_header_filter lambda_gateway.editHeaders;
+
+        # Catch all errors from S3 and sanitize them so that the user can't
+        # gain intelligence about the S3 bucket being proxied.
+        proxy_intercept_errors on;
+
+        # Comment out this line to receive the error messages returned by S3
+        #error_page 400 401 402 403 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
+
+        #error_page 404 @trailslashControl;
+
+        #proxy_pass ${S3_SERVER_PROTO}://storage_urls$s3uri;
+        proxy_set_body "";
+        proxy_method   POST;
+        #proxy_pass ${LAMBDA_SERVER_PROTO}://lambda_urls$lambdaUri;
+        proxy_pass $lambda_functions;
 
         include /etc/nginx/conf.d/gateway/s3_location.conf;
     }
