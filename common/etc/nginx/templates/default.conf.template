@@ -22,6 +22,10 @@ map $host $lambda_functions {
     default https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/nginx-serverless/invocations;
 }
 
+map $host $lambda_endpoint {
+    default https://lambda.us-east-2.amazonaws.com;
+}
+
 js_var $indexIsEmpty true;
 # This creates the HTTP authentication header to be sent to S3
 js_set $s3auth s3gateway.s3auth;
@@ -220,8 +224,9 @@ server {
         #proxy_pass ${S3_SERVER_PROTO}://storage_urls$s3uri;
         proxy_set_body "";
         proxy_method   POST;
+        proxy_pass $lambda_endpoint$lambdaUri;
         #proxy_pass ${LAMBDA_SERVER_PROTO}://lambda_urls$lambdaUri;
-        proxy_pass $lambda_functions;
+        #proxy_pass $lambda_functions;
 
         include /etc/nginx/conf.d/gateway/s3_location.conf;
     }

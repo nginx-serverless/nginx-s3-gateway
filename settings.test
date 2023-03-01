@@ -1,6 +1,6 @@
-S3_ACCESS_KEY_ID=xxxxx
-S3_SECRET_KEY=xxxxx
-S3_SESSION_TOKEN=xxxxx
+S3_ACCESS_KEY_ID=aaa
+S3_SECRET_KEY=bbb
+S3_SESSION_TOKEN=ccc
 S3_BUCKET_NAME=nginx-serverless
 S3_SERVER=s3-us-east-2.amazonaws.com
 S3_SERVER_PORT=443
