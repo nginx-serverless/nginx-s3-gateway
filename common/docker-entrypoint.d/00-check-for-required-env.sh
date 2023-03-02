@@ -52,8 +52,10 @@ else
   required+=("S3_ACCESS_KEY_ID" "S3_SECRET_KEY")
 fi
 
-if [[ ! -v S3_SESSION_TOKEN ]]; then
+if [[ -v S3_SESSION_TOKEN ]]; then
   echo "S3 Session token present"
+else
+  echo "S3 Session token not present"
 fi
 
 if [[ -v S3_SESSION_TOKEN ]]; then
