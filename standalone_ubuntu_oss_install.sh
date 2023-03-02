@@ -172,6 +172,9 @@ fi
 
 if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then
 CORS_ALLOWED_ORIGIN="*"
+    cat >> "/etc/nginx/environment" << EOF
+CORS_ALLOWED_ORIGIN=${CORS_ALLOWED_ORIGIN}
+EOF
 fi
 
 # Only include these env vars if we are not using a instance profile credential
