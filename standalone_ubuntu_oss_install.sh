@@ -40,8 +40,12 @@ elif curl --output /dev/null --silent --head --fail --connect-timeout 2 "http://
   echo "Running inside an EC2 instance, using IMDS for credentials"
   uses_iam_creds=1
 else
-  required+=("S3_ACCESS_KEY_ID" "S3_SECRET_KEY" "S3_SESSION_TOKEN")
+  required+=("S3_ACCESS_KEY_ID" "S3_SECRET_KEY")
   uses_iam_creds=0
+fi
+
+if [[ ! -v S3_SESSION_TOKEN ]]; then
+  echo "S3 Session token present"
 fi
 
 for name in ${required[@]}; do
