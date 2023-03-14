@@ -35,7 +35,7 @@ function _runSignatureV2(r) {
     // TODO: Generate request parameters without using s3gateway to only test 
     //       awssig2.js for the purpose of common library.
     const httpDate = timestamp.toUTCString();
-    const expected = 'AWS test-access-key-1:i8mUdNFEDndIYQ9DHUjNxSf1rb4=';
+    const expected = 'AWS test-access-key-1:VviSS4cFhUC6eoB4CYqtRawzDrc=';
     let req = s3gateway._s3ReqParamsForSigV2(r, bucket);
     let signature = awssig2.signatureV2(r, req.uri, httpDate, creds);
     console.log(`\n##### Signature V2 : ${signature}`);

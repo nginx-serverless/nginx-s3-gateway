@@ -203,15 +203,14 @@ function _s3ReqParamsForSigV2(r, bucket) {
      * string to sign. For example, if we are requesting /bucket/dir1/ from
      * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
      * Thus, we can't put the path /dir1/ in the string to sign. */
-     let uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
-     // To return index pages + index.html
-     if (PROVIDE_INDEX_PAGE && _isDirectory(r.variables.uri_path)){
-         uri = r.variables.uri_path + INDEX_PAGE
-     }
-     uri += '/' + bucket + uri;
+    let uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
+    // To return index pages + index.html
+    if (PROVIDE_INDEX_PAGE && _isDirectory(r.variables.uri_path)){
+        uri = r.variables.uri_path + INDEX_PAGE
+    }
  
     return {
-        uri: uri,
+        uri: '/' + bucket + uri,
         httpDate: s3date(r)
     };
 }
