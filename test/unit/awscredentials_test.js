@@ -25,22 +25,22 @@ globalThis.ngx = {};
 function testReadCredentialsWithAccessSecretKeyAndSessionTokenSet() {
     printHeader('testReadCredentialsWithAccessSecretKeyAndSessionTokenSet');
     let r = {};
-    process.env['S3_ACCESS_KEY_ID'] = 'SOME_ACCESS_KEY';
-    process.env['S3_SECRET_KEY'] = 'SOME_SECRET_KEY';
-    if ('S3_SESSION_TOKEN' in process.env) {
-        process.env['S3_SESSION_TOKEN'] = 'SOME_SESSION_TOKEN';
+    process.env['AWS_ACCESS_KEY_ID'] = 'SOME_ACCESS_KEY';
+    process.env['AWS_SECRET_ACCESS_KEY'] = 'SOME_SECRET_KEY';
+    if ('AWS_SESSION_TOKEN' in process.env) {
+        process.env['AWS_SESSION_TOKEN'] = 'SOME_SESSION_TOKEN';
     }
 
     try {
         var credentials = awscred.readCredentials(r);
-        if (credentials.accessKeyId !== process.env['S3_ACCESS_KEY_ID']) {
+        if (credentials.accessKeyId !== process.env['AWS_ACCESS_KEY_ID']) {
             throw 'static credentials do not match returned value [accessKeyId]';
         }
-        if (credentials.secretAccessKey !== process.env['S3_SECRET_KEY']) {
+        if (credentials.secretAccessKey !== process.env['AWS_SECRET_ACCESS_KEY']) {
             throw 'static credentials do not match returned value [secretAccessKey]';
         }
-        if ('S3_SESSION_TOKEN' in process.env) {
-            if (credentials.sessionToken !== process.env['S3_SESSION_TOKEN']) {
+        if ('AWS_SESSION_TOKEN' in process.env) {
+            if (credentials.sessionToken !== process.env['AWS_SESSION_TOKEN']) {
                 throw 'static credentials do not match returned value [sessionToken]';
             }
         } else {
@@ -53,10 +53,10 @@ function testReadCredentialsWithAccessSecretKeyAndSessionTokenSet() {
         }
 
     } finally {
-        delete process.env.S3_ACCESS_KEY_ID;
-        delete process.env.S3_SECRET_KEY;
-        if ('S3_SESSION_TOKEN' in process.env) {
-            delete process.env.S3_SESSION_TOKEN;
+        delete process.env.AWS_ACCESS_KEY_ID;
+        delete process.env.AWS_SECRET_ACCESS_KEY;
+        if ('AWS_SESSION_TOKEN' in process.env) {
+            delete process.env.AWS_SESSION_TOKEN;
         }
     }
 }
@@ -69,7 +69,7 @@ function testReadCredentialsFromFilePath() {
         }
     };
 
-    var originalCredentialPath = process.env['S3_CREDENTIALS_TEMP_FILE'];
+    var originalCredentialPath = process.env['AWS_CREDENTIALS_TEMP_FILE'];
     var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
     var uniqId = `${new Date().getTime()}-${Math.floor(Math.random()*101)}`;
     var tempFile = `${tempDir}/credentials-unit-test-${uniqId}.json`;
@@ -78,7 +78,7 @@ function testReadCredentialsFromFilePath() {
     fs.writeFileSync(tempFile, testData);
 
     try {
-        process.env['S3_CREDENTIALS_TEMP_FILE'] = tempFile;
+        process.env['AWS_CREDENTIALS_TEMP_FILE'] = tempFile;
         var credentials = awscred.readCredentials(r);
         var testDataAsJSON = JSON.parse(testData);
         if (credentials.accessKeyId !== testDataAsJSON.accessKeyId) {
@@ -95,7 +95,7 @@ function testReadCredentialsFromFilePath() {
         }
     } finally {
         if (originalCredentialPath) {
-            process.env['S3_CREDENTIALS_TEMP_FILE'] = originalCredentialPath;
+            process.env['AWS_CREDENTIALS_TEMP_FILE'] = originalCredentialPath;
         }
         if (fs.statSync(tempFile, {throwIfNoEntry: false})) {
             fs.unlinkSync(tempFile);
@@ -110,13 +110,13 @@ function testReadCredentialsFromNonexistentPath() {
             cache_instance_credentials_enabled: 0
         }
     };
-    var originalCredentialPath = process.env['S3_CREDENTIALS_TEMP_FILE'];
+    var originalCredentialPath = process.env['AWS_CREDENTIALS_TEMP_FILE'];
     var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
     var uniqId = `${new Date().getTime()}-${Math.floor(Math.random()*101)}`;
     var tempFile = `${tempDir}/credentials-unit-test-${uniqId}.json`;
 
     try {
-        process.env['S3_CREDENTIALS_TEMP_FILE'] = tempFile;
+        process.env['AWS_CREDENTIALS_TEMP_FILE'] = tempFile;
         var credentials = awscred.readCredentials(r);
         if (credentials !== undefined) {
             throw 'Credentials returned when no credentials file should be present';
@@ -124,7 +124,7 @@ function testReadCredentialsFromNonexistentPath() {
 
     } finally {
         if (originalCredentialPath) {
-            process.env['S3_CREDENTIALS_TEMP_FILE'] = originalCredentialPath;
+            process.env['AWS_CREDENTIALS_TEMP_FILE'] = originalCredentialPath;
         }
         if (fs.statSync(tempFile, {throwIfNoEntry: false})) {
             fs.unlinkSync(tempFile);
@@ -135,16 +135,16 @@ function testReadCredentialsFromNonexistentPath() {
 function testReadAndWriteCredentialsFromKeyValStore() {
     printHeader('testReadAndWriteCredentialsFromKeyValStore');
 
-    let accessKeyId = process.env['S3_ACCESS_KEY_ID'];
-    let secretKey = process.env['S3_SECRET_KEY'];
+    let accessKeyId = process.env['AWS_ACCESS_KEY_ID'];
+    let secretKey = process.env['AWS_SECRET_ACCESS_KEY'];
     let sessionToken = null;
-    if ('S3_SESSION_TOKEN' in process.env) {
-        sessionToken = process.env['S3_SESSION_TOKEN'];
+    if ('AWS_SESSION_TOKEN' in process.env) {
+        sessionToken = process.env['AWS_SESSION_TOKEN'];
     }
-    delete process.env.S3_ACCESS_KEY_ID;
-    delete process.env.S3_SECRET_KEY;
-    if ('S3_SESSION_TOKEN' in process.env) {
-        delete process.env.S3_SESSION_TOKEN
+    delete process.env.AWS_ACCESS_KEY_ID;
+    delete process.env.AWS_SECRET_ACCESS_KEY;
+    if ('AWS_SESSION_TOKEN' in process.env) {
+        delete process.env.AWS_SESSION_TOKEN
     }
     try {
         let r = {
@@ -170,17 +170,17 @@ function testReadAndWriteCredentialsFromKeyValStore() {
             throw 'Credentials do not match expected value';
         }
     } finally {
-        process.env['S3_ACCESS_KEY_ID'] = accessKeyId;
-        process.env['S3_SECRET_KEY'] = secretKey;
-        if ('S3_SESSION_TOKEN' in process.env) {
-            process.env['S3_SESSION_TOKEN'] = sessionToken
+        process.env['AWS_ACCESS_KEY_ID'] = accessKeyId;
+        process.env['AWS_SECRET_ACCESS_KEY'] = secretKey;
+        if ('AWS_SESSION_TOKEN' in process.env) {
+            process.env['AWS_SESSION_TOKEN'] = sessionToken
         }
     }
 }
 
 async function testEcsCredentialRetrieval() {
     printHeader('testEcsCredentialRetrieval');
-    process.env['S3_ACCESS_KEY_ID'] = undefined;
+    process.env['AWS_ACCESS_KEY_ID'] = undefined;
     process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = '/example';
     globalThis.ngx.fetch = function (url) {
         globalThis.recordedUrl = url;
@@ -227,7 +227,7 @@ async function testEcsCredentialRetrieval() {
 
 async function testEc2CredentialRetrieval() {
     printHeader('testEc2CredentialRetrieval');
-    process.env['S3_ACCESS_KEY_ID'] = undefined;
+    process.env['AWS_ACCESS_KEY_ID'] = undefined;
     process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = undefined;
     globalThis.ngx.fetch = function (url, options) {
         if (url === 'http://169.254.169.254/latest/api/token' && options && options.method === 'PUT') {

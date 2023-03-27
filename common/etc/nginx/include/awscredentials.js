@@ -75,12 +75,12 @@ function sessionToken(r) {
  */
 function readCredentials(r) {
     // TODO: Change the generic constants naming for multiple AWS services.
-    if ('S3_ACCESS_KEY_ID' in process.env && 'S3_SECRET_KEY' in process.env) {
-        const sessionToken = 'S3_SESSION_TOKEN' in process.env ?
-                              process.env['S3_SESSION_TOKEN'] : null;
+    if ('AWS_ACCESS_KEY_ID' in process.env && 'AWS_SECRET_ACCESS_KEY' in process.env) {
+        const sessionToken = 'AWS_SESSION_TOKEN' in process.env ?
+                              process.env['AWS_SESSION_TOKEN'] : null;
         return {
-            accessKeyId: process.env['S3_ACCESS_KEY_ID'],
-            secretAccessKey: process.env['S3_SECRET_KEY'],
+            accessKeyId: process.env['AWS_ACCESS_KEY_ID'],
+            secretAccessKey: process.env['AWS_SECRET_ACCESS_KEY'],
             sessionToken: sessionToken,
             expiration: null
         };
@@ -147,8 +147,8 @@ function _readCredentialsFromFile() {
  * @private
  */
 function _credentialsTempFile() {
-    if (process.env['S3_CREDENTIALS_TEMP_FILE']) {
-        return process.env['S3_CREDENTIALS_TEMP_FILE'];
+    if (process.env['AWS_CREDENTIALS_TEMP_FILE']) {
+        return process.env['AWS_CREDENTIALS_TEMP_FILE'];
     }
     if (process.env['TMPDIR']) {
         return `${process.env['TMPDIR']}/credentials.json`
@@ -166,7 +166,7 @@ function _credentialsTempFile() {
 function writeCredentials(r, credentials) {
     /* Do not bother writing credentials if we are running in a mode where we
        do not need instance credentials. */
-    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+    if (process.env['AWS_ACCESS_KEY_ID'] && process.env['AWS_SECRET_ACCESS_KEY']) {
         return;
     }
 
@@ -225,7 +225,7 @@ function _writeCredentialsToFile(credentials) {
 async function fetchCredentials(r) {
     /* If we are not using an AWS instance profile to set our credentials we
        exit quickly and don't write a credentials file. */
-    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+    if (process.env['AWS_ACCESS_KEY_ID'] && process.env['AWS_SECRET_ACCESS_KEY']) {
         r.return(200);
         return;
     }
